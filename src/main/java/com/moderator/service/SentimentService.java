@@ -18,7 +18,7 @@ import java.util.concurrent.*;
 
 @Service
 public class SentimentService {
-    private static final String API_KEY = "AIzaSyAka6R7maQc_jotv72tZMzVlNxRBPQtT2k"; // Replace with your actual YouTube API key
+    private static final String API_KEY = "your_api_key"; // Replace with your actual YouTube API key
     private static final String APPLICATION_NAME = "YouTubeCommentAnalyzer";
     private final YouTube youtubeService;
 
