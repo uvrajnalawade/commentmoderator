@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Comment Analysis Results</title>
+    <link rel="stylesheet" href="result.css"> <!-- Link to your CSS file -->
+</head>
+<body>
+<!--<div class="container">-->
+    <h1>Comment Analysis Results</h1>
+
+    <label for="filter">Filter Comments by Sentiment:</label>
+    <select id="filter" onchange="filterComments()">
+        <option value="all">All</option>
+        <option value="positive">Positive</option>
+        <option value="negative">Negative</option>
+        <option value="neutral">Neutral</option>
+    </select>
+
+    <div id="comments">
+        <h2>Positive Comments</h2>
+        <ul th:if="${positiveComments.size() > 0}">
+            <li th:each="comment : ${positiveComments}" th:text="${comment}"></li>
+        </ul>
+        <p th:if="${positiveComments.size() == 0}">No positive comments found.</p>
+
+        <h2>Negative Comments</h2>
+        <ul th:if="${negativeComments.size() > 0}">
+            <li th:each="comment : ${negativeComments}" th:text="${comment}"></li>
+        </ul>
+        <p th:if="${negativeComments.size() == 0}">No negative comments found.</p>
+
+        <h2>Neutral Comments</h2>
+        <ul th:if="${neutralComments.size() > 0}">
+            <li th:each="comment : ${neutralComments}" th:text="${comment}"></li>
+        </ul>
+        <p th:if="${neutralComments.size() == 0}">No neutral comments found.</p>
+    </div>
+</div>
+
+<script>
+    function filterComments() {
+        const filter = document.getElementById('filter').value;
+        const sections = document.querySelectorAll('h2');
+        sections.forEach(section => {
+            const commentList = section.nextElementSibling; // Get the corresponding <ul>
+            if (filter === 'all' || section.textContent.toLowerCase().includes(filter)) {
+                section.style.display = 'block';
+                commentList.style.display = 'block';
+            } else {
+                section.style.display = 'none';
+                commentList.style.display = 'none';
+            }
+        });
+    }
+</script>
+</body>
+</html>

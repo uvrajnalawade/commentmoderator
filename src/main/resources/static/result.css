@@ -1,0 +1,57 @@
+body {
+    background-color: #E7F3FF; /* Light blue background */
+    font-family: Arial, sans-serif; /* Font for the page */
+    margin: 0; /* Remove default margin */
+    padding: 20px; /* Add padding */
+}
+
+.container {
+    max-width: 800px; /* Maximum width of the container */
+    margin: 0 auto; /* Center the container */
+    padding: 20px; /* Add padding inside the container */
+    border-radius: 10px; /* Rounded corners */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Shadow for the container */
+    background-color: #E7F3FF; /* White background for the container */
+}
+
+h1, h2 {
+    text-align: center; /* Center the text */
+    font-weight: bold; /* Make text bold */
+    font-size: 16px; /* Set font size to 16px */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3); /* Shadow effect for the text */
+}
+
+ul {
+    list-style-type: none; /* Remove bullet points */
+    padding: 0; /* Remove padding from the list */
+}
+
+li {
+    margin: 10px 0; /* Add space between list items */
+    padding: 10px; /* Add padding inside list items */
+  /*  border: 1px solid #4CAF50; /* Green border for list items */
+    /*border-radius: 5px; /* Rounded corners for list items */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Shadow for list items*/
+}
+
+.select-label-container {
+    text-align: center; /* Center the whole label and select */
+    margin-top: 20px; /* Add space at the top */
+}
+
+label {
+    font-weight: bold; /* Bold label */
+    font-size: 16px; /* Set font size for label */
+    margin-right: 10px; /* Add space between label and select */
+    vertical-align: middle; /* Align label with select */
+    display: inline-block; /* Ensure label stays inline */
+}
+
+select {
+    padding: 5px; /* Add padding inside select */
+    font-size: 16px; /* Set font size for select */
+    border-radius: 5px; /* Rounded corners for select */
+    border: 1px solid #ccc; /* Border for select */
+    vertical-align: middle; /* Align select with label */
+    display: inline-block; /* Ensure select stays inline */
+}
