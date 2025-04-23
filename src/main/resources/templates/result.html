@@ -1,58 +1,166 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
+    <title>Analysis Results</title>
     <meta charset="UTF-8">
-    <title>Comment Analysis Results</title>
-    <link rel="stylesheet" href="result.css"> <!-- Link to your CSS file -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Results of YouTube comment analysis">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/result.css" rel="stylesheet">
+    <style>
+        /* Additional inline styles to ensure filtering works */
+        .comment-section {
+            display: none;
+        }
+        .comment-section.active {
+            display: block;
+        }
+        .filter-dropdown {
+            max-width: 300px;
+            margin: 0 auto 20px;
+        }
+    </style>
 </head>
 <body>
-<!--<div class="container">-->
-    <h1>Comment Analysis Results</h1>
+    <div class="container">
+        <h1>Comment Analysis Results</h1>
+        <p class="text-muted mb-4">Video URL: <span th:text="${youtubeUrl}"></span></p>
 
-    <label for="filter">Filter Comments by Sentiment:</label>
-    <select id="filter" onchange="filterComments()">
-        <option value="all">All</option>
-        <option value="positive">Positive</option>
-        <option value="negative">Negative</option>
-        <option value="neutral">Neutral</option>
-    </select>
+        <!-- Statistics Section -->
+        <div class="row stats-card">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Comments</h5>
+                        <p class="card-text" th:text="${totalComments}">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Positive</h5>
+                        <p class="card-text" th:text="${positiveCount}">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Negative</h5>
+                        <p class="card-text" th:text="${negativeCount}">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body">
+                        <h5 class="card-title">Spam</h5>
+                        <p class="card-text" th:text="${spamCount}">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <div id="comments">
-        <h2>Positive Comments</h2>
-        <ul th:if="${positiveComments.size() > 0}">
-            <li th:each="comment : ${positiveComments}" th:text="${comment}"></li>
-        </ul>
-        <p th:if="${positiveComments.size() == 0}">No positive comments found.</p>
+        <!-- Filter Dropdown -->
+        <div class="filter-dropdown">
+            <label for="commentFilter" class="form-label">Filter Comments:</label>
+            <select id="commentFilter" class="form-select" aria-label="Filter comments by category">
+                <option value="all" selected>All Comments</option>
+                <option value="positive">Positive Comments</option>
+                <option value="negative">Negative Comments</option>
+                <option value="neutral">Neutral Comments</option>
+                <option value="spam">Spam Comments</option>
+            </select>
+        </div>
 
-        <h2>Negative Comments</h2>
-        <ul th:if="${negativeComments.size() > 0}">
-            <li th:each="comment : ${negativeComments}" th:text="${comment}"></li>
-        </ul>
-        <p th:if="${negativeComments.size() == 0}">No negative comments found.</p>
+        <!-- All Comments Section -->
+        <div class="comment-section active" id="all-comments">
+            <h3>All Comments</h3>
+            <div class="comment-card" th:each="comment : ${categorizedComments.positive}">
+                <div class="card border-success">
+                    <div class="card-body">
+                        <p class="card-text" th:text="${comment}">Comment text</p>
+                    </div>
+                </div>
+            </div>
+            <div class="comment-card" th:each="comment : ${categorizedComments.negative}">
+                <div class="card border-danger">
+                    <div class="card-body">
+                        <p class="card-text" th:text="${comment}">Comment text</p>
+                    </div>
+                </div>
+            </div>
+            <div class="comment-card" th:each="comment : ${categorizedComments.neutral}">
+                <div class="card border-secondary">
+                    <div class="card-body">
+                        <p class="card-text" th:text="${comment}">Comment text</p>
+                    </div>
+                </div>
+            </div>
+            <div class="comment-card" th:each="comment : ${categorizedComments.spam}">
+                <div class="card border-warning">
+                    <div class="card-body">
+                        <p class="card-text" th:text="${comment}">Comment text</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <h2>Neutral Comments</h2>
-        <ul th:if="${neutralComments.size() > 0}">
-            <li th:each="comment : ${neutralComments}" th:text="${comment}"></li>
-        </ul>
-        <p th:if="${neutralComments.size() == 0}">No neutral comments found.</p>
+        <!-- Positive Comments Section -->
+        <div class="comment-section" id="positive-comments">
+            <h3 class="text-success">Positive Comments</h3>
+            <div class="comment-card" th:each="comment : ${categorizedComments.positive}">
+                <div class="card border-success">
+                    <div class="card-body">
+                        <p class="card-text" th:text="${comment}">Comment text</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Negative Comments Section -->
+        <div class="comment-section" id="negative-comments">
+            <h3 class="text-danger">Negative Comments</h3>
+            <div class="comment-card" th:each="comment : ${categorizedComments.negative}">
+                <div class="card border-danger">
+                    <div class="card-body">
+                        <p class="card-text" th:text="${comment}">Comment text</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Neutral Comments Section -->
+        <div class="comment-section" id="neutral-comments">
+            <h3 class="text-secondary">Neutral Comments</h3>
+            <div class="comment-card" th:each="comment : ${categorizedComments.neutral}">
+                <div class="card border-secondary">
+                    <div class="card-body">
+                        <p class="card-text" th:text="${comment}">Comment text</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spam Comments Section -->
+        <div class="comment-section" id="spam-comments">
+            <h3 class="text-warning">Spam Comments</h3>
+            <div class="comment-card" th:each="comment : ${categorizedComments.spam}">
+                <div class="card border-warning">
+                    <div class="card-body">
+                        <p class="card-text" th:text="${comment}">Comment text</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="/" class="btn btn-primary mb-4">Analyze Another Video</a>
+        </div>
     </div>
-</div>
 
-<script>
-    function filterComments() {
-        const filter = document.getElementById('filter').value;
-        const sections = document.querySelectorAll('h2');
-        sections.forEach(section => {
-            const commentList = section.nextElementSibling; // Get the corresponding <ul>
-            if (filter === 'all' || section.textContent.toLowerCase().includes(filter)) {
-                section.style.display = 'block';
-                commentList.style.display = 'block';
-            } else {
-                section.style.display = 'none';
-                commentList.style.display = 'none';
-            }
-        });
-    }
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/comment-filter.js"></script>
 </body>
 </html>

@@ -1,0 +1,20 @@
+Click here to win a free iPhone!	true
+Check out this amazing offer, limited time only!	true
+Buy now and get 50% off, guaranteed!	true
+URGENT: Your account needs verification	true
+Congratulations! You've won a lottery!	true
+This video was really helpful, thanks for sharing!	false
+Great content, I learned a lot from this.	false
+The explanation was clear and concise.	false
+I appreciate the detailed tutorial.	false
+This helped me solve my problem.	false
+Get rich quick with this secret method!	true
+Don't miss out on this once-in-a-lifetime opportunity!	true
+Your account will be suspended unless you verify now!	true
+Amazing deals, click here before they're gone!	true
+You won't believe what happened next!	true
+The quality of this tutorial is excellent.	false
+Thanks for taking the time to explain this.	false
+This is exactly what I was looking for.	false
+Very informative and well-presented content.	false
+I can't thank you enough for this helpful video.	false 

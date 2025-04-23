@@ -1,144 +1,281 @@
 package com.moderator.service;
 
 import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.youtube.YouTube;
 import com.google.api.services.youtube.model.CommentThread;
 import com.google.api.services.youtube.model.CommentThreadListResponse;
-import edu.stanford.nlp.ling.CoreAnnotations;
-import edu.stanford.nlp.pipeline.Annotation;
-import edu.stanford.nlp.pipeline.StanfordCoreNLP;
-import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
-import edu.stanford.nlp.util.CoreMap;
+import com.moderator.exception.YouTubeApiException;
+import com.moderator.exception.InvalidUrlException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PostConstruct;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Pattern;
 
+import com.moderator.service.ModelBasedSpamDetector;
+
+/**
+ * Service for analyzing sentiment in YouTube comments.
+ * Provides functionality to fetch comments from YouTube and categorize them by sentiment.
+ */
 @Service
 public class SentimentService {
-    private static final String API_KEY = "your_api_key"; // Replace with your actual YouTube API key
-    private static final String APPLICATION_NAME = "YouTubeCommentAnalyzer";
-    private final YouTube youtubeService;
+    private static final Logger logger = LoggerFactory.getLogger(SentimentService.class);
+    
+    @Value("${youtube.api.key}")
+    private String apiKey;
 
-    private final ExecutorService executorService;
+    @Value("${youtube.application.name}")
+    private String applicationName;
 
-    public SentimentService() {
-        // Initialize the YouTube service
-        youtubeService = new YouTube.Builder(new NetHttpTransport(), new JacksonFactory(), request -> {})
-                .setApplicationName(APPLICATION_NAME)
-                .build();
+    @Value("${comment.analysis.thread-pool-size:5}")
+    private int threadPoolSize;
 
-        // Initialize ExecutorService with a fixed thread pool
-        int threadPoolSize = Runtime.getRuntime().availableProcessors(); // Adjust thread pool size based on available processors
-        this.executorService = Executors.newFixedThreadPool(threadPoolSize);
+    @Value("${comment.analysis.default-language:en}")
+    private String defaultLanguage;
+    
+    @Value("${sentiment.positive.words}")
+    private String positiveWordsString;
+    
+    @Value("${sentiment.negative.words}")
+    private String negativeWordsString;
+    
+    private List<String> positiveWords;
+    private List<String> negativeWords;
+
+    private YouTube youtubeService;
+    private ExecutorService executorService;
+    private final ModelBasedSpamDetector spamDetector;
+    
+    private static final Pattern YOUTUBE_URL_PATTERN = Pattern.compile(
+        "^(https?://)?(www\\.)?(youtube\\.com/watch\\?v=|youtu\\.be/)([a-zA-Z0-9_-]{11}).*$"
+    );
+
+    /**
+     * Constructor for SentimentService.
+     *
+     * @param spamDetector Service for detecting spam in comments
+     */
+    public SentimentService(ModelBasedSpamDetector spamDetector) {
+        this.spamDetector = spamDetector;
     }
 
-    public Map<String, List<String>> analyzeSentiment(String youtubeUrl, int commentCount) {
-        List<String> comments = getCommentsFromYouTube(youtubeUrl, commentCount);
-
-        List<Future<Map.Entry<String, String>>> futures = new ArrayList<>();
-
-        // Submit tasks for each comment to the ExecutorService
-        for (String comment : comments) {
-            Future<Map.Entry<String, String>> future = executorService.submit(() -> {
-                // Create a new StanfordCoreNLP pipeline for each task (thread-safe)
-                Properties props = new Properties();
-                props.setProperty("annotators", "tokenize,ssplit,pos,lemma,parse,sentiment");
-                StanfordCoreNLP localPipeline = new StanfordCoreNLP(props);
-
-                Annotation annotation = new Annotation(comment);
-                localPipeline.annotate(annotation);
-                String sentiment = "Neutral"; // Default to Neutral in case no sentences are found
-
-                for (CoreMap sentence : annotation.get(CoreAnnotations.SentencesAnnotation.class)) {
-                    sentiment = sentence.get(SentimentCoreAnnotations.SentimentClass.class);
-                }
-                return new AbstractMap.SimpleEntry<>(sentiment, comment);
-            });
-
-            futures.add(future);
-        }
-
-        // Initialize lists for categorized comments
-        List<String> positiveComments = new ArrayList<>();
-        List<String> negativeComments = new ArrayList<>();
-        List<String> neutralComments = new ArrayList<>();
-
-        // Collect results from all tasks
-        for (Future<Map.Entry<String, String>> future : futures) {
-            try {
-                Map.Entry<String, String> result = future.get();
-                String sentiment = result.getKey();
-                String comment = result.getValue();
-
-                // Categorize the comments based on sentiment
-                switch (sentiment) {
-                    case "Positive":
-                        positiveComments.add(comment);
-                        break;
-                    case "Negative":
-                        negativeComments.add(comment);
-                        break;
-                    default:
-                        neutralComments.add(comment);
-                        break;
-                }
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace(); // Handle errors in production
-            }
-        }
-
-        // Shutdown the executor service if you want to close it after processing (optional)
-        // executorService.shutdown();
-
-        // Create a map to hold categorized comments
-        Map<String, List<String>> categorizedComments = new HashMap<>();
-        categorizedComments.put("positive", positiveComments);
-        categorizedComments.put("negative", negativeComments);
-        categorizedComments.put("neutral", neutralComments);
-
-        return categorizedComments;
-    }
-
-    // Fetch comments from YouTube API
-    private List<String> getCommentsFromYouTube(String youtubeUrl, int commentCount) {
-        List<String> comments = new ArrayList<>();
+    /**
+     * Initializes the YouTube service and thread pool.
+     */
+    @PostConstruct
+    private void initialize() {
+        logger.info("Initializing SentimentService with thread pool size: {}", threadPoolSize);
+        
         try {
-            // Extract video ID from YouTube URL
-            String videoId = extractVideoIdFromUrl(youtubeUrl);
-
-            // Request to get the comment threads for the video
-            YouTube.CommentThreads.List request = youtubeService.commentThreads()
-                    .list("snippet")
-                    .setVideoId(videoId)
-                    .setKey(API_KEY)
-                    .setMaxResults((long) commentCount); // Get up to specified number of comments
-
-            // Execute the request and get the response
-            CommentThreadListResponse response = request.execute();
-
-            // Extract comments from the response
-            for (CommentThread commentThread : response.getItems()) {
-                String commentText = commentThread.getSnippet().getTopLevelComment().getSnippet().getTextDisplay();
-                comments.add(commentText);
-            }
-        } catch (IOException e) {
-            e.printStackTrace(); // Handle error properly in production
+            youtubeService = new YouTube.Builder(
+                new NetHttpTransport(),
+                GsonFactory.getDefaultInstance(),
+                null)
+                .setApplicationName(applicationName)
+                .build();
+                
+            executorService = Executors.newFixedThreadPool(threadPoolSize);
+            
+            // Initialize sentiment word lists
+            positiveWords = Arrays.asList(positiveWordsString.split(","));
+            negativeWords = Arrays.asList(negativeWordsString.split(","));
+            
+            logger.info("YouTube service initialized successfully");
+        } catch (Exception e) {
+            logger.error("Failed to initialize YouTube service", e);
+            throw new RuntimeException("Failed to initialize YouTube service", e);
         }
-
-        return comments;
     }
 
-    // Helper method to extract the video ID from a YouTube URL
-    private String extractVideoIdFromUrl(String youtubeUrl) {
-        String videoId = null;
-        if (youtubeUrl.contains("v=")) {
-            videoId = youtubeUrl.substring(youtubeUrl.indexOf("v=") + 2);
-        } else if (youtubeUrl.contains("youtu.be/")) {
-            videoId = youtubeUrl.substring(youtubeUrl.lastIndexOf("/") + 1);
+    /**
+     * Analyzes sentiment in comments from a YouTube video.
+     *
+     * @param youtubeUrl The URL of the YouTube video
+     * @param commentCount The number of comments to analyze
+     * @return A map of categorized comments
+     * @throws YouTubeApiException if there's an error with the YouTube API
+     * @throws InvalidUrlException if the URL is invalid
+     */
+    public Map<String, List<String>> analyzeSentiment(String youtubeUrl, int commentCount) {
+        logger.info("Analyzing sentiment for URL: {}, comment count: {}", youtubeUrl, commentCount);
+        
+        try {
+            // Extract video ID from URL
+            String videoId = extractVideoIdFromUrl(youtubeUrl);
+            if (videoId == null) {
+                throw new InvalidUrlException("Invalid YouTube URL format");
+            }
+            
+            // Get comments from YouTube
+            List<String> comments = getCommentsFromYouTube(youtubeUrl, commentCount);
+            logger.info("Retrieved {} comments from YouTube", comments.size());
+            
+            // Categorize comments
+            Map<String, List<String>> categorizedComments = new HashMap<>();
+            categorizedComments.put("positive", new ArrayList<>());
+            categorizedComments.put("negative", new ArrayList<>());
+            categorizedComments.put("neutral", new ArrayList<>());
+            categorizedComments.put("spam", new ArrayList<>());
+            
+            // Process comments in parallel
+            List<Future<Map.Entry<String, String>>> futures = new ArrayList<>();
+            
+            for (String comment : comments) {
+                futures.add(executorService.submit(() -> {
+                    String sentiment = analyzeSimpleSentiment(comment);
+                    boolean isSpam = spamDetector.isSpam(comment);
+                    
+                    if (isSpam) {
+                        return new AbstractMap.SimpleEntry<>("spam", comment);
+                    } else {
+                        return new AbstractMap.SimpleEntry<>(sentiment, comment);
+                    }
+                }));
+            }
+            
+            // Collect results
+            for (Future<Map.Entry<String, String>> future : futures) {
+                try {
+                    Map.Entry<String, String> entry = future.get(5, TimeUnit.SECONDS);
+                    categorizedComments.get(entry.getKey()).add(entry.getValue());
+                } catch (Exception e) {
+                    logger.error("Error processing comment", e);
+                }
+            }
+            
+            logger.info("Sentiment analysis complete. Categorized {} comments", comments.size());
+            return categorizedComments;
+            
+        } catch (InvalidUrlException e) {
+            logger.error("Invalid URL: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("Error analyzing sentiment", e);
+            throw new YouTubeApiException("Error analyzing comments: " + e.getMessage(), e);
         }
-        return videoId;
+    }
+
+    /**
+     * Analyzes the sentiment of a comment using a simple keyword-based approach.
+     *
+     * @param comment The comment to analyze
+     * @return The sentiment category ("positive", "negative", or "neutral")
+     */
+    private String analyzeSimpleSentiment(String comment) {
+        if (comment == null || comment.trim().isEmpty()) {
+            return "neutral";
+        }
+        
+        String lowerComment = comment.toLowerCase();
+        int positiveCount = 0;
+        int negativeCount = 0;
+        
+        // Count positive words
+        for (String word : positiveWords) {
+            if (lowerComment.contains(word)) {
+                positiveCount++;
+            }
+        }
+        
+        // Count negative words
+        for (String word : negativeWords) {
+            if (lowerComment.contains(word)) {
+                negativeCount++;
+            }
+        }
+        
+        // Determine sentiment
+        if (positiveCount > negativeCount) {
+            return "positive";
+        } else if (negativeCount > positiveCount) {
+            return "negative";
+        } else {
+            return "neutral";
+        }
+    }
+
+    /**
+     * Gets comments from a YouTube video.
+     *
+     * @param youtubeUrl The URL of the YouTube video
+     * @param commentCount The number of comments to retrieve
+     * @return A list of comments
+     * @throws YouTubeApiException if there's an error with the YouTube API
+     * @throws InvalidUrlException if the URL is invalid
+     */
+    public List<String> getCommentsFromYouTube(String youtubeUrl, int commentCount) {
+        logger.info("Getting comments from YouTube for URL: {}, count: {}", youtubeUrl, commentCount);
+        
+        try {
+            String videoId = extractVideoIdFromUrl(youtubeUrl);
+            if (videoId == null) {
+                throw new InvalidUrlException("Invalid YouTube URL format");
+            }
+            
+            List<String> comments = new ArrayList<>();
+            String pageToken = null;
+            
+            do {
+                YouTube.CommentThreads.List request = youtubeService.commentThreads()
+                    .list(Collections.singletonList("snippet"))
+                    .setKey(apiKey)
+                    .setVideoId(videoId)
+                    .setMaxResults((long) Math.min(500, commentCount - comments.size()))
+                    .setTextFormat("plainText");
+                
+                if (pageToken != null) {
+                    request.setPageToken(pageToken);
+                }
+                
+                CommentThreadListResponse response = request.execute();
+                
+                for (CommentThread thread : response.getItems()) {
+                    if (thread.getSnippet().getTopLevelComment() != null) {
+                        String commentText = thread.getSnippet().getTopLevelComment().getSnippet().getTextDisplay();
+                        comments.add(commentText);
+                        
+                        if (comments.size() >= commentCount) {
+                            break;
+                        }
+                    }
+                }
+                
+                pageToken = response.getNextPageToken();
+                
+            } while (pageToken != null && comments.size() < commentCount);
+            
+            logger.info("Retrieved {} comments from YouTube", comments.size());
+            return comments;
+            
+        } catch (IOException e) {
+            logger.error("Error fetching comments from YouTube", e);
+            throw new YouTubeApiException("Error fetching comments from YouTube: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Extracts the video ID from a YouTube URL.
+     *
+     * @param youtubeUrl The YouTube URL
+     * @return The video ID, or null if the URL is invalid
+     */
+    private String extractVideoIdFromUrl(String youtubeUrl) {
+        if (youtubeUrl == null || youtubeUrl.trim().isEmpty()) {
+            return null;
+        }
+        
+        var matcher = YOUTUBE_URL_PATTERN.matcher(youtubeUrl);
+        if (matcher.matches()) {
+            return matcher.group(4);
+        }
+        
+        return null;
     }
 }

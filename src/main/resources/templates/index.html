@@ -1,30 +1,55 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
+    <title>YouTube Comment Moderator</title>
     <meta charset="UTF-8">
-    <title>Comment Moderator</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Link to your CSS file -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Analyze YouTube comments for sentiment and spam">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/styles.css" rel="stylesheet">
+    <style>
+        .full-width-input {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-    <h1>Comment Moderator</h1>
-    <form action="#" method="post" th:action="@{/analyze}" th:object="${commentForm}">
-        <div class="form-inline">
-            <div class="input-group">
-                <label for="youtubeUrl">YouTube URL:</label>
-                <input type="text" id="youtubeUrl" name="youtubeUrl" placeholder="Enter YouTube Video URL" required />
-            </div>
-
-            <div class="input-group">
-                <label for="commentCount">Comment Count:</label>
-                <input type="number" id="commentCount" name="commentCount" placeholder="Number of Comments" min="1" max="100" required />
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 text-center">
+                <h1 class="mb-4">YouTube Comment Moderator</h1>
+                <p class="lead mb-4">Enter a YouTube video URL to analyze its comments for sentiment and spam.</p>
+                
+                <form id="commentForm" th:action="@{/spamanalyze}" method="post">
+                    <div class="mb-3">
+                        <label for="youtubeUrl" class="form-label visually-hidden">YouTube Video URL</label>
+                        <input type="text" class="form-control full-width-input" id="youtubeUrl" name="youtubeUrl" 
+                               placeholder="Enter YouTube video URL" required aria-label="YouTube video URL">
+                    </div>
+                    <div class="mb-3">
+                        <label for="commentCount" class="form-label">Number of comments to analyze:</label>
+                        <input type="number" class="form-control" id="commentCount" name="commentCount" 
+                               min="1" value="10" aria-label="Number of comments to analyze">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Analyze Comments</button>
+                </form>
+                
+                <div id="loading" class="mt-4 d-none" aria-live="polite">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Analyzing comments, please wait...</p>
+                </div>
+                
+                <div id="error" class="alert alert-danger mt-4 d-none" role="alert" aria-live="assertive">
+                    <span id="errorMessage"></span>
+                </div>
             </div>
         </div>
+    </div>
 
-        <div class="submit-btn">
-            <button type="submit">Submit</button>
-        </div>
-    </form>
-</div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/comment-form.js"></script>
 </body>
 </html>

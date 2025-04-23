@@ -10,10 +10,16 @@ body {
 
 .container {
     text-align: center; /* Center text */
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 30px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-input[type="text"]{
-    width: 300px; /* Width of input boxes */
+input[type="text"], input[type="number"] {
+    width: 100%; /* Width of input boxes */
     padding: 10px; /* Padding inside the input box */
     border: 2px solid green; /* Green border */
     border-radius: 15px; /* Rounded corners */
@@ -42,4 +48,64 @@ button {
 
 button:hover {
     background-color: darkgreen; /* Darker green on hover */
+}
+
+.comment-card {
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.comment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.sentiment-positive {
+    border-left: 4px solid #28a745;
+}
+
+.sentiment-negative {
+    border-left: 4px solid #dc3545;
+}
+
+.sentiment-neutral {
+    border-left: 4px solid #6c757d;
+}
+
+.sentiment-spam {
+    border-left: 4px solid #ffc107;
+}
+
+.loading {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+}
+
+.error-message {
+    color: #dc3545;
+    margin-top: 1rem;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #343a40;
+}
+
+.card {
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.form-label {
+    font-weight: bold;
+    margin-bottom: 10px;
+    display: block;
+    text-align: left;
+}
+
+.text-center {
+    text-align: center;
 }
